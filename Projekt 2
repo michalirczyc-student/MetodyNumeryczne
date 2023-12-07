@@ -1,1 +1,170 @@
+### PROJEKT 2 ###
+
+#################
+
+# Zadanie 1
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate as sciint
+
+plt.rcParams['figure.figsize']=[12,6]
+plt.rcParams.update({'font.size':12})
+
+
+data = np.array([[1.0,3.0], [2.0,1.0], [3.5,4.0], [5.0,0.0], [6.0,0.5], [9.0,-2.0], [9.5,-3.0]])
+x = np.linspace(0,10,100)
+N = data.shape[0]-1
+X = []
+Y = []
+
+for i in range(data.shape[0]):
+    X.append(data[i,0])
+    Y.append(data[i,1])
+
+print(f"Lista X: {X}\nLista Y: {Y}")
+
+def h_func():
+    return [X[i+1]-X[i] for i in range(N)]
+
+H = h_func()
+
+def b_func():
+    return [(6/H[i])*(Y[i+1]-Y[i]) for i in range(N)]
+
+B = b_func()
+
+U = []
+V = []
+
+U.append(2*(H[0]+H[1]))
+V.append(B[1]-B[0])
+
+for i in range(1,N):
+    U.append(2*(H[i-1]+H[i])-((H[i]**2)/U[i-1]))
+    V.append(B[i]-B[i-1]-((H[i-1]*V[i-1])/U[i-1]))
+
+print(f"LEN: H - {len(H)}, u - {len(U)}, V - {len(V)} N - {N}")
+
+Z = np.zeros(N+1)
+
+for i in range(N):
+    Z[i]=((1/U[i])*(V[i]-H[i]*Z[i]))
+
+print(f"Z: {Z}")
+
+A = []
+B = []
+C = []
+
+for i in range(N):
+    A.append(((1/(6*H[i]))*(Z[i+1]-Z[i])))
+    B.append(Z[i]/2)
+    C.append((-1*(H[i]/6))*(Z[i+1]+2*Z[i])+((1/H[i])*(data[i+1,1] - data[i,1])))
+
+s = np.zeros(x.shape[0])
+S_list = []
+
+for i in range(N):
+    for j in range(x.shape[0]):
+        s += (data[i,1] + (x-data[i,0])*(C[i]+(x-data[i,0])*(B[i]+(x-data[i,0])*A[i])))
+
+fSC = s/1000    # wartości funkcji podzielone przez 1000 w wyniku potencjalnego błędu, którego nie byłem w stanie zweryfikować - bez podzielenia przez 1000 funkcja
+                # przybiera wartości z zakresu od -25000 do 10000
+print(f"Funkcja sklejana 3 stopnia: {fSC}")
+
+fig = plt.figure()
+axes = fig.add_subplot(1,1,1)
+
+axes.plot(x,fSC,'r',label="Funkcja sklejana stopnia 3")
+
+axes.set_title("Wykres naturalnej funkcji sklejanej stopnia 3 (Zadanie 1)")
+axes.set_xlabel("X")
+axes.set_ylabel("S(x)")
+plt.ylim(-5,30) #narzucone ograniczenie osi Y do przedziału (-5,30) - większość funkcji nie przybiera wartości spoza tego przedziału, dodane dla estetyki wykresu
+plt.grid()
+plt.legend()
+plt.show()
+
+
+## Zadanie 2:
+
+P_linear2 = np.zeros(x.shape) #S(x)
+P_linear = np.zeros(x.shape)
+
+for n in range(N):
+    if n == 0:
+        P_linear2 += ((data[n+1,1]-data[n,1])/(data[n+1,0]-data[n,0])*(x-data[n,0])+data[n,1])*(x<=data[n+1,0])
+    elif n==N+1:
+        P_linear2 += ((data[n+1,1]-data[n,1])/(data[n+1,0]-data[n,0])*(x-data[n,0])+data[n, 1])*(x>data[n,0])
+    else:
+        P_linear2 += ((data[n+1,1]-data[n,1])/(data[n+1,0]-data[n,0])*(x-data[n,0])+data[n,1])*(x>data[n,0])*(x<=data[n+1,0])
+
+print(f'Funkcja sklejona 1 stopnia: {P_linear2}')
+
+## INTERPOLACJA LAGRANGE'A
+
+def l(x,data):
+    poly = np.ones((data.shape[0], x.shape[0]))
+    for i in range(data.shape[0]):
+        for j in range(data.shape[0]):
+            if i!=j:
+                poly[i,:] *= (x-data[j,0])/(data[i,0]-data[j,0])
+    return poly
+
+def poly_interpol(x,data):
+    p = np.zeros(x.shape[0])
+    basis = l(x,data)
+    for n in range(data.shape[0]):
+        p += basis[n,:] * data[n,1]
+    return p
+
+def f(x):
+    return 1.0/(1.0 + 25.0 * x**2)
+
+print(f"Funkcja metodą Lagrange'a: {f(x)}")
+
+func_new = sciint.CubicSpline(data[:,0], data[:,1])
+print(func_new)
+
+fig = plt.figure()
+axes = fig.add_subplot(1,1,1)
+
+axes.plot(x,fSC,'r',label="Funkcja sklejona stopnia 3")
+axes.plot(x,P_linear2,'g', label = "Funkcja sklejona stopnia 1")
+axes.plot(x,poly_interpol(x,data),'b', label = "Wielomiany Lagrange'a")
+axes.plot(x,func_new(x),'y', label = "CubicSpline")
+
+
+
+axes.plot(data[:,0], data[:,1], 'bx', label='Węzły')
+
+axes.set_title("Porównanie funkcji sklejanych stopnia 3 i 1, metody Scipy CubicSpline oraz wielomianów Lagrange'a (Zadanie 2)")
+axes.set_xlabel("X")
+axes.set_ylabel("S(x)")
+plt.ylim(-5,30) #narzucone ograniczenie osi Y do przedziału (-5,30) - większość funkcji nie przybiera wartości spoza tego przedziału, dodane dla estetyki wykresu
+plt.grid()
+plt.legend()
+plt.show()
+
+## Zadanie 3:
+
+### Odpowiedź na pytanie: 
+# Wykresy są do siebie *stosunkowo* podobne, jednak zdecydowanie nie pokrywają się - może być to spowodowane albo pewnym błędem zrobionym przeze mnie pisząc program
+# lub też wynikać z faktu, że jednak metoda pobrana z biblioteki scipy jest o wiele dokładniejsza w kwestii interpolacji funkcji.
+
+fig = plt.figure()
+axes = fig.add_subplot(1,1,1)
+
+axes.plot(x,fSC,'r',label="Funkcja stopnia 3")
+axes.plot(x,func_new(x),'g', label = "Scipy CubicSpline")
+
+axes.set_title("Porównanie funkcji sklejanej 3 stopnia z metodą Scipy CubicSpline (Zadanie 3)")
+axes.set_xlabel("X")
+axes.set_ylabel("S(x)")
+plt.grid()
+plt.legend()
+plt.show()
+
+### WYKONAŁ: MICHAŁ IRCZYC (NR ALBUMU: 280674)
 
